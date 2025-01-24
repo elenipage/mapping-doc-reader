@@ -4,6 +4,10 @@ import * as XLSX from "xlsx";
 function ExcelReader() {
   const [inboundColumnValues, setInboundColumnValues] = useState([]);
   const [outboundColumnValues, setOutboundColumnValues] = useState([]);
+  const [inboundObjectNames, setInboundObjectNames] = useState([]);
+  const [outboundObjectNames, setOutboundObjectNames] = useState([]);
+  const [groupedInboundData, setGroupedInboundData] = useState({});
+  const [groupedOutboundData, setGroupedOutboundData] = useState({});
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -16,29 +20,45 @@ function ExcelReader() {
         // Parse the file as an Excel workbook
         const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
-        // Check if the workbook has at least two sheets
-        if (workbook.SheetNames.length >= 2) {
-          // Read the second sheet (inbound)
+        // Check if the workbook has at least three sheets
+        if (workbook.SheetNames.length >= 3) {
+          // Access the second sheet (inbound)
           const inboundSheetName = workbook.SheetNames[1];
           const inboundSheet = workbook.Sheets[inboundSheetName];
           const inboundJsonData = processSheet(inboundSheet);
-          const uniqueInboundValues = extractColumnValues(
+          const inboundValues = extractColumnValues(
             inboundJsonData,
             "Force24: Display Name"
           );
-          setInboundColumnValues(uniqueInboundValues);
+          const inboundObjects = extractColumnValues(
+            inboundJsonData,
+            "API Object Name"
+          );
+          setInboundColumnValues(inboundValues);
+          setInboundObjectNames(inboundObjects);
+          setGroupedInboundData(
+            groupFieldsByObject(inboundValues, inboundObjects)
+          );
 
-          // Read the third sheet (outbound)
+          // Access the third sheet (outbound)
           const outboundSheetName = workbook.SheetNames[2];
           const outboundSheet = workbook.Sheets[outboundSheetName];
           const outboundJsonData = processSheet(outboundSheet);
-          const uniqueOutboundValues = extractColumnValues(
+          const outboundValues = extractColumnValues(
             outboundJsonData,
             "Display Name"
           );
-          setOutboundColumnValues(uniqueOutboundValues);
+          const outboundObjects = extractColumnValues(
+            outboundJsonData,
+            "API Object Name"
+          );
+          setOutboundColumnValues(outboundValues);
+          setOutboundObjectNames(outboundObjects);
+          setGroupedOutboundData(
+            groupFieldsByObject(outboundValues, outboundObjects)
+          );
         } else {
-          alert("The uploaded file must contain at least two sheets.");
+          alert("The uploaded file must contain at least three sheets.");
         }
       };
       reader.readAsArrayBuffer(file);
@@ -63,11 +83,35 @@ function ExcelReader() {
   };
 
   const extractColumnValues = (data, columnName) => {
-    return Array.from(
-      new Set(
-        data.map((row) => row[columnName]).filter((value) => value !== null) // Remove null/undefined values
-      )
-    );
+    return data
+      .map((row) => row[columnName])
+      .filter((value) => value !== null && value !== "Custom Fields"); // Remove null/undefined values
+  };
+
+  const groupFieldsByObject = (fields, objects) => {
+    const groupedData = {};
+    let activeObject = null;
+
+    fields.forEach((field, index) => {
+      const currentObject = objects[index];
+      if (!groupedData[currentObject]) {
+        groupedData[currentObject] = [];
+      }
+      groupedData[currentObject].push(field);
+    });
+
+    return groupedData;
+  };
+
+  const displayData = (data) => {
+    return Object.keys(data).map((obj) => (
+      <div key={obj}>
+        <h3 style={{marginVertical: "20px"}}>{obj}</h3>
+        {data[obj].map((field, index) => (
+          <p key={index}>{field}</p>
+        ))}
+      </div>
+    ));
   };
 
   return (
@@ -79,29 +123,28 @@ function ExcelReader() {
         onChange={handleFileUpload}
         style={{ marginBottom: "20px" }}
       />
-      <h2>Field Names</h2>
       <div
         style={{
           display: "flex",
-          justifyContent: "center",
+          justifyContent: "space-around",
           padding: "20px",
         }}
       >
         <div>
-          <h3>Inbound:</h3>
-          {inboundColumnValues
-            ? inboundColumnValues.map((field, index) => {
-                return <p key={index}>{field}</p>;
-              })
-            : null}
+          <h2>Inbound Fields:</h2>
+          {Object.keys(groupedInboundData).length > 0 ? (
+            displayData(groupedInboundData)
+          ) : (
+            <p>No inbound data</p>
+          )}
         </div>
         <div>
-          <h3>Outbound:</h3>
-          {outboundColumnValues
-            ? outboundColumnValues.map((field, index) => {
-                return <p key={index}>{field}</p>;
-              })
-            : null}
+          <h2>Outbound Fields:</h2>
+          {Object.keys(groupedOutboundData).length > 0 ? (
+            displayData(groupedOutboundData)
+          ) : (
+            <p>No outbound data</p>
+          )}
         </div>
       </div>
     </div>
