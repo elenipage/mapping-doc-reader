@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import * as XLSX from "xlsx";
+import ObjectCard from "./ObjectCard";
 
 function ExcelReader() {
   const [inboundColumnValues, setInboundColumnValues] = useState([]);
@@ -85,47 +86,37 @@ function ExcelReader() {
   const extractColumnValues = (data, columnName) => {
     return data.map((row) => row[columnName]); // Do not filter out any values here
   };
-  
 
   const groupFieldsByObject = (fields, objects) => {
     const groupedData = {};
     let activeObject = null;
-  
+
     // Group fields by their corresponding objects
     fields.forEach((field, index) => {
       const currentObject = objects[index];
-      if(objects[index] === null) {return}
+      if (objects[index] === null) {
+        return;
+      }
       // Initialise array for new objects
       if (!groupedData[currentObject]) {
         groupedData[currentObject] = [];
       }
-  
+
       // Add field to the corresponding object group
       groupedData[currentObject].push(field);
-  
+
       // Update active object for reference
       activeObject = currentObject;
     });
-  
+
     // Remove unwanted values (null, undefined, "Custom Fields") after grouping
     Object.keys(groupedData).forEach((objectName) => {
       groupedData[objectName] = groupedData[objectName].filter(
         (field) => field && field !== "Custom Fields"
       );
     });
-  
-    return groupedData;
-  };
 
-  const displayData = (data) => {
-    return Object.keys(data).map((obj) => (
-      <div key={obj}>
-        <h3 style={{marginVertical: "20px"}}>{obj}</h3>
-        {data[obj].map((field, index) => (
-          <p key={index}>{field}</p>
-        ))}
-      </div>
-    ));
+    return groupedData;
   };
 
   return (
@@ -137,25 +128,23 @@ function ExcelReader() {
         onChange={handleFileUpload}
         style={{ marginBottom: "20px" }}
       />
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          padding: "20px",
-        }}
-      >
-        <div>
+      <div>
           <h2>Inbound Fields:</h2>
+        <div className="obj-container">
           {Object.keys(groupedInboundData).length > 0 ? (
-            displayData(groupedInboundData)
+            Object.keys(groupedInboundData).map((obj) => (
+              <ObjectCard object={obj} fields={groupedInboundData[obj]} />
+            ))
           ) : (
             <p>No inbound data</p>
           )}
         </div>
-        <div>
           <h2>Outbound Fields:</h2>
+        <div className="obj-container">
           {Object.keys(groupedOutboundData).length > 0 ? (
-            displayData(groupedOutboundData)
+            Object.keys(groupedOutboundData).map((obj) => (
+              <ObjectCard object={obj} fields={groupedOutboundData[obj]} />
+            ))
           ) : (
             <p>No outbound data</p>
           )}
